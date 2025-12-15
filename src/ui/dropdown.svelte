@@ -1,4 +1,6 @@
 <script lang="ts">
+  import DropdownList from './dropdownlist.svelte';
+
   export let items: Array<{ value: string; label: string }>;
   export let selectedValue: string;
   export let onSelect: (value: string) => void;
@@ -44,17 +46,11 @@
   </button>
 
   {#if isOpen}
-    <div class="dropdown-list" class:position-up={position === 'up'}>
-      {#each items as item}
-        <button
-          class="dropdown-item"
-          class:selected={item.value === selectedValue}
-          on:click={() => selectItem(item.value)}
-          type="button"
-        >
-          {item.label}
-        </button>
-      {/each}
-    </div>
+    <DropdownList
+      {items}
+      {selectedValue}
+      {position}
+      onSelect={selectItem}
+    />
   {/if}
 </div>
