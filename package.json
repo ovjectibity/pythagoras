@@ -1,5 +1,5 @@
 {
-  "name": "pythagoras-figma-plugin",
+  "name": "basquiat-figma-plugin",
   "version": "0.0.1",
   "description": "Agent for building Figma Design files.",
   "main": "dist/code.js",
