@@ -42,6 +42,8 @@ export interface AssistantModelMessage {
     type: UserOutput | IssueCommand
 }
 
+export type ModelMessage = UserModelMessage | AssistantModelMessage;
+
 export interface ClosePlugin {
     type: "close_plugin"
 }

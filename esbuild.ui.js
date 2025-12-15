@@ -19,21 +19,25 @@ const inlineHtmlPlugin = {
         const cssContent = fs.readFileSync(path.join(__dirname, 'dist/ui.css'), 'utf8');
 
         // Create inline HTML
-        const inlineHtml = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Pythagoras</title>
-  <style>
-${cssContent}
-  </style>
-</head>
-<body>
-  <script>
-${jsContent}
-  </script>
-</body>
-</html>`;
+        const inlineHtml =
+                  `<!DOCTYPE html>
+                  <html>
+                  <head>
+                    <meta charset="utf-8">
+                    <title>Pythagoras</title>
+                    <link rel="preconnect" href="https://fonts.googleapis.com">
+                    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+                    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+                    <style>
+                  ${cssContent}
+                    </style>
+                  </head>
+                  <body>
+                    <script>
+                  ${jsContent}
+                    </script>
+                  </body>
+                  </html>`;
 
         // Write to index.html
         fs.writeFileSync(path.join(__dirname, 'index.html'), inlineHtml, 'utf8');
