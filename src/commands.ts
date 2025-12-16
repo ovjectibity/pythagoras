@@ -3,7 +3,7 @@ export interface CreateRectangle {
 }
 
 export interface GetLayerVisual {
-  type: "create-rectangle"
+  type: "get-layer-visual"
 }
 
 export interface MoveLayer {
@@ -11,6 +11,12 @@ export interface MoveLayer {
     x: number,
     y: number,
 }
+
+export interface ClosePlugin {
+    type: "close_plugin"
+}
+
+export type Commands = GetLayerVisual | CreateRectangle | ClosePlugin;
 
 export interface IssueCommandResult {
     type: "issue_command_result",
@@ -22,9 +28,14 @@ export interface UserInput {
     content: string
 }
 
+export interface WorkflowInstruction {
+    type: "workflow_instruction",
+    content: string
+}
+
 export interface IssueCommand {
     type: "issue_command",
-    content: string
+    content: Commands
 }
 
 export interface UserOutput {
@@ -34,19 +45,12 @@ export interface UserOutput {
 
 export interface UserModelMessage {
     role: "user",
-    message: IssueCommandResult | UserInput
+    contents: Array<IssueCommandResult | UserInput | WorkflowInstruction>
 }
 
 export interface AssistantModelMessage {
     role: "assistant",
-    type: UserOutput | IssueCommand
+    contents: Array<UserOutput | IssueCommand | WorkflowInstruction>
 }
 
 export type ModelMessage = UserModelMessage | AssistantModelMessage;
-
-export interface ClosePlugin {
-    type: "close_plugin"
-}
-
-// Message types for type safety
-export type Commands = GetLayerVisual | CreateRectangle | ClosePlugin;
