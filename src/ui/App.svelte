@@ -1,16 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { ModelMessage } from "../commands.js";
+  import type { ModelMessage } from "../messages.js";
   import Header from './header.svelte';
   import Messages from './messages.svelte';
   import Input from './input.svelte';
-  import Settings from './settings.svelte';
 
   // State management
   let apiKey: string = "";
   let userInput: string = "";
   let messages: Array<ModelMessage> = [];
-  let showSettings = false;
   let isLoading = false;
 
   // Load API key from localStorage on mount
@@ -26,13 +24,8 @@
     }
   });
 
-  function toggleSettings() {
-    showSettings = !showSettings;
-  }
-
   function saveApiKey() {
     localStorage.setItem('anthropic_api_key', apiKey);
-    showSettings = false;
   }
 
   function handleKeyPress(event: KeyboardEvent) {
@@ -47,7 +40,6 @@
 
     if (!apiKey) {
       alert('Please set your API key in settings first');
-      showSettings = true;
       return;
     }
 
@@ -70,7 +62,6 @@
 
 <div class="app">
   <Header 
-  onSettingsClick={toggleSettings}
   selectedChat={"chat-1"}
   onChatChange={onChatChange} />
 
@@ -84,12 +75,4 @@
     selectedModel={"claude-opus-4"}
     onModelChange={onModeChange}
   />
-
-  {#if showSettings}
-    <Settings
-      bind:apiKey={apiKey}
-      onClose={toggleSettings}
-      onSave={saveApiKey}
-    />
-  {/if}
 </div>

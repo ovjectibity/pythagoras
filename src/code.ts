@@ -1,4 +1,4 @@
-import { Commands } from "./commands.js";
+import { Commands } from "./messages.js";
 
 // This shows the HTML page in "ui.html".
 figma.showUI(__html__, { width: 400, height: 800 });
