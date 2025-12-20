@@ -1,21 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { ModelMessage, 
     UserModelMessage, 
-    AssistantModelMessage, 
     FigmaDesignToolInput,
-    AssistantModelMessageO,
-    FigmaDesignToolEvokeStatus} from "./messages";
-import { Command } from "./messages.js";
+    AssistantModelMessageO } from "./messages";
+import { CommandExecutor } from "./executor.js";
 import { Tool as AnthTool } from "@anthropic-ai/sdk/resources";
 import { BetaContentBlockParam, BetaMessageParam } from "@anthropic-ai/sdk/resources/beta.mjs";
 import { FigmaDesignToolZ, FigmaDesignToolSchema } from "./figmatoolschema.js";
 import { ModelMessageSchema, ModelMessageZ } from "./messagesschema.js";
 import { prompts } from "./prompts.js";
-
-interface CommandExecutor {
-    executeCommands(cmds: Command[]): Promise<FigmaDesignToolEvokeStatus>;
-    executeCommand(cmd: Command): Promise<FigmaDesignToolEvokeStatus>;
-}
 
 class FigmaAgentThread {
     maxTokens = 1024;

@@ -1,13 +1,20 @@
 export interface CreateRectangle {
   type: "create-rectangle"
+  x: number
+  y: number
+  width: number
+  height: number
+  fill?: string
 }
 
 export interface GetLayerVisual {
   type: "get-layer-visual"
+  layerId?: string
 }
 
 export interface MoveLayer {
     type: "move-layer",
+    layerId: string,
     x: number,
     y: number,
 }
@@ -20,7 +27,8 @@ export type Command = MoveLayer | GetLayerVisual | CreateRectangle | ClosePlugin
 
 export interface FigmaDesignToolEvokeStatus {
     status: "success" | "failure"
-    errorReason?: string
+    errorReason?: string,
+    visual?: string
 }
 
 export interface FigmaDesignToolResult {
