@@ -18,7 +18,7 @@
       </svg>
     </button>
 
-    <h2 class="overlay-title">Manage API Keys</h2>
+    <div class="overlay-title">Manage API Keys</div>
 
     <div class="form-field">
       <label for="api-key" class="form-label">Anthropic key</label>

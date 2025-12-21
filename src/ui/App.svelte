@@ -160,11 +160,11 @@
 </script>
 
 <div class="app">
-  <!-- <Header
+  <Header
     selectedChat={"chat-1"}
     onChatChange={onChatChange}
     onManageApiKeys={openApiKeyOverlay}
-  /> -->
+  />
 
   <Messages {messages} {isLoading} />
 
