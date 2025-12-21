@@ -146,15 +146,6 @@
     apiKey = newApiKey;
     saveApiKey();
     // Recreate the agent with the new API key
-    if (apiKey) {
-      currentThreadAgent = new FigmaAgentThread(
-        1,
-        modelName,
-        apiKey,
-        cmdExec,
-        userOutputSurfacing
-      );
-    }
     closeApiKeyOverlay();
   }
 </script>

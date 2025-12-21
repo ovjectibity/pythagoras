@@ -22,6 +22,16 @@
             <div class="message-content">
               {content.content}
             </div>
+          {:else if content.type === "tool_use" && content.name === "figma-design-tool"}
+            <div class="message-content">
+              Invoking Figma tool: 
+              {content.content.input.objective}
+            </div>
+          {:else if content.type === "tool_use_result" && content.name === "figma-design-tool"}
+            <div class="message-content">
+              Got this result from the Figma tool:
+              {content.content.status}
+            </div>
           {/if}
         {/each}
       </div>
