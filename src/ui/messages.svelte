@@ -1,8 +1,12 @@
 <script lang="ts">
   import type { ModelMessage } from "../messages.js";
 
-  export let messages: Array<ModelMessage>;
-  export let isLoading: boolean;
+  interface Props {
+    messages: Array<ModelMessage>;
+    isLoading: boolean;
+  }
+
+  let { messages, isLoading }: Props = $props();
 </script>
 
 <div class="messages">

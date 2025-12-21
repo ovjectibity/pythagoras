@@ -1,14 +1,18 @@
 <script lang="ts">
-  export let apiKey: string;
-  export let onClose: () => void;
-  export let onUpdate: (newApiKey: string) => void;
+  interface Props {
+    apiKey: string;
+    onClose: () => void;
+    onUpdate: (newApiKey: string) => void;
+  }
 
-  let tempApiKey: string = apiKey;
+  let { apiKey, onClose, onUpdate }: Props = $props();
+
+  let tempApiKey: string = $state(apiKey);
 </script>
 
 <div class="overlay">
   <div class="overlay-content">
-    <button class="close-button" on:click={onClose}>
+    <button class="close-button" onclick={onClose}>
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <path d="M12 4L4 12M4 4L12 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
       </svg>
@@ -27,7 +31,7 @@
       />
     </div>
 
-    <button class="update-button" on:click={() => onUpdate(tempApiKey)}>
+    <button class="update-button" onclick={() => onUpdate(tempApiKey)}>
       Update
     </button>
   </div>

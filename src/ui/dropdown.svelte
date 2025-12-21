@@ -1,13 +1,25 @@
 <script lang="ts">
+  import { run, stopPropagation } from 'svelte/legacy';
+
   import DropdownList from './dropdownlist.svelte';
 
-  export let items: Map<string, string>;
-  export let selectedKey: string;
-  export let onSelect: (key: string) => void;
-  export let disabled: boolean = false;
-  export let position: 'up' | 'down' = 'down';
+  interface Props {
+    items: Map<string, string>;
+    selectedKey: string;
+    onSelect: (key: string) => void;
+    disabled?: boolean;
+    position?: 'up' | 'down';
+  }
 
-  let isOpen = false;
+  let {
+    items,
+    selectedKey = $bindable(),
+    onSelect,
+    disabled = false,
+    position = 'down'
+  }: Props = $props();
+
+  let isOpen = $state(false);
 
   function toggleDropdown() {
     if (!disabled) {
@@ -27,15 +39,17 @@
     }
   }
 
-  $: selectedKey = selectedKey
+  run(() => {
+    selectedKey = selectedKey
+  });
 </script>
 
-<svelte:window on:click={handleClickOutside} />
+<svelte:window onclick={handleClickOutside} />
 
 <div class="dropdown" class:disabled>
   <button
     class="dropdown-trigger"
-    on:click|stopPropagation={toggleDropdown}
+    onclick={stopPropagation(toggleDropdown)}
     {disabled}
     type="button"
   >

@@ -9,13 +9,13 @@
   import type { CommandExecutor } from '../common.js';
   import { FigmaPluginCommandsDispatcher } from './uicommandsexecutor.js';
 
-  let apiKey: string = "";
-  let userInput: string = "";
-  let messages: Array<ModelMessage> = [];
+  let apiKey: string = $state("");
+  let userInput: string = $state("");
+  let messages: Array<ModelMessage> = $state([]);
   let modelName: string = "claude-haiku-4-5-20251001";
   let isLoading = false;
   let cmdExec: CommandExecutor;
-  let showApiKeyOverlay = false;
+  let showApiKeyOverlay = $state(false);
 
   let userOutputSurfacing = (msg: string): Promise<void> => {
     console.log(`Got message from the model for the user: ${msg}`);
@@ -160,11 +160,11 @@
 </script>
 
 <div class="app">
-  <Header
+  <!-- <Header
     selectedChat={"chat-1"}
     onChatChange={onChatChange}
     onManageApiKeys={openApiKeyOverlay}
-  />
+  /> -->
 
   <Messages {messages} {isLoading} />
 

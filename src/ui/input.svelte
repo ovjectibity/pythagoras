@@ -1,12 +1,23 @@
 <script lang="ts">
   import Dropdown from './dropdown.svelte';
 
-  export let userInput: string;
-  export let isLoading: boolean;
-  export let onSend: () => void;
-  export let onKeyPress: (event: KeyboardEvent) => void;
-  export let selectedModel: string;
-  export let onModelChange: (model: string) => void;
+  interface Props {
+    userInput: string;
+    isLoading: boolean;
+    onSend: () => void;
+    onKeyPress: (event: KeyboardEvent) => void;
+    selectedModel: string;
+    onModelChange: (model: string) => void;
+  }
+
+  let {
+    userInput = $bindable(),
+    isLoading,
+    onSend,
+    onKeyPress,
+    selectedModel,
+    onModelChange
+  }: Props = $props();
 
   const modelOptions = new Map([
     ['claude-opus-4', 'Claude Opus 4' ],
@@ -21,12 +32,12 @@
     class="input-area"
     contenteditable="true"
     bind:textContent={userInput}
-    on:keypress={onKeyPress}
+    onkeypress={onKeyPress}
     data-placeholder="Describe the changes you want to make..."
     class:disabled={isLoading}
     role="textbox"
     tabindex="0"
-    />
+></div>
   </div>
   <div class="input-controls">
     <Dropdown
@@ -38,7 +49,7 @@
     />
     <button
       class="send-button"
-      on:click={onSend}
+      onclick={onSend}
       disabled={!userInput.trim() || isLoading}
     >
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">

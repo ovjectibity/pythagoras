@@ -1,10 +1,16 @@
 <script lang="ts">
+  import { stopPropagation } from 'svelte/legacy';
+
   import Dropdown from './dropdown.svelte';
   import DropdownList from './dropdownlist.svelte';
 
-  export let selectedChat: string;
-  export let onChatChange: (chat: string) => void;
-  export let onManageApiKeys: () => void;
+  interface Props {
+    selectedChat: string;
+    onChatChange: (chat: string) => void;
+    onManageApiKeys: () => void;
+  }
+
+  let { selectedChat, onChatChange, onManageApiKeys }: Props = $props();
 
   const chatOptions = new Map([
     [ 'chat-1', 'Chat 1' ],
@@ -16,7 +22,7 @@
     [ 'manage-api-keys', 'Manage API keys' ]
   ]);
 
-  let isMoreDropdownOpen = false;
+  let isMoreDropdownOpen = $state(false);
 
   const toggleMoreDropdown = () => {
     isMoreDropdownOpen = !isMoreDropdownOpen;
@@ -37,7 +43,7 @@
   }
 </script>
 
-<svelte:window on:click={handleClickOutside} />
+<svelte:window onclick={handleClickOutside} />
 
 <div class="header">
   <Dropdown
@@ -53,7 +59,7 @@
       </svg>
     </button>
     <div class="more-dropdown-wrapper" style="position: relative;">
-      <button class="icon-button" title="More" on:click|stopPropagation={toggleMoreDropdown}>
+      <button class="icon-button" title="More" onclick={stopPropagation(toggleMoreDropdown)}>
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
           <circle cx="8" cy="4" r="1" fill="currentColor"/>
           <circle cx="8" cy="8" r="1" fill="currentColor"/>

@@ -53,11 +53,10 @@ const buildOptions = {
   entryPoints: ['src/ui/ui.ts'],
   bundle: true,
   outfile: 'dist/ui.js',
-  // conditions: ['browser', 'svelte'], 
-  // mainFields: ['svelte', 'browser', 'module', 'main'],
+  conditions: ['browser', 'svelte'], 
+  mainFields: ['svelte', 'browser', 'module', 'main'],
   plugins: [
     sveltePlugin({
-      preprocess: sveltePreprocess(),
     }),
     inlineHtmlPlugin,
   ],

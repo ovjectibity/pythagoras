@@ -1,9 +1,19 @@
 <script lang="ts">
-  export let items: Map<string,string>;
-  export let selectedKey: string;
-  export let onSelect: (value: string) => void;
-  export let position: 'up' | 'down' = 'down';
-  export let align: 'left' | 'right' = 'left';
+  interface Props {
+    items: Map<string,string>;
+    selectedKey: string;
+    onSelect: (value: string) => void;
+    position?: 'up' | 'down';
+    align?: 'left' | 'right';
+  }
+
+  let {
+    items,
+    selectedKey,
+    onSelect,
+    position = 'down',
+    align = 'left'
+  }: Props = $props();
 </script>
 
 <div class="dropdown-list" class:position-up={position === 'up'} class:align-right={align === 'right'}>
@@ -11,7 +21,7 @@
     <button
       class="dropdown-item"
       class:selected={key === selectedKey}
-      on:click={() => onSelect(key)}
+      onclick={() => onSelect(key)}
       type="button"
     >
       {val}
