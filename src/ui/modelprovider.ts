@@ -47,7 +47,7 @@ class GoogleAIModels implements ModelProvider {
     }
 
     ingestMessage(msg: ModelMessage): Promise<ModelMessage> {
-
+        
     }
 }
 
