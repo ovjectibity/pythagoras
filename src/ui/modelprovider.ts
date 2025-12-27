@@ -1,53 +1,184 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { ModelMessage,
+import { 
     ModelMessageO, 
     FigmaDesignToolInput,
     AssistantModelMessageO, 
     UserModelMessage,
     AssistantModelMessage,
-    AssistantModelMessageContents} from "../messages.js";
-import { GoogleGenAI } from "@google/genai";
+    AssistantModelMessageContents
+} from "../messages.js";
+import { FunctionCallingConfigMode, GoogleGenAI, 
+    Content as GoogleMessage, 
+    Tool as GoogleTool,
+    Part as GoogleMessageParams
+} from "@google/genai";
 import { Tool as AnthTool } from "@anthropic-ai/sdk/resources";
 import { FigmaDesignToolZ, FigmaDesignToolSchema } from "../figmatoolschema.js";
-import { AssistantModelMessageSchema } from "../messagesschema.js";
+import { AssistantModelMessageSchema, ModelMessageSchema } from "../messagesschema.js";
 import { BetaContentBlockParam, BetaMessageParam } from "@anthropic-ai/sdk/resources/beta.mjs";
 
 interface ModelProvider {
     type: string;
     maxTokens: number;
-    ingestMessage(msg: ModelMessage): Promise<ModelMessage>;
+    ingestUserMessage(msg: UserModelMessage): Promise<AssistantModelMessage>;
 }
 
 interface ToolsConfig {
     figma: boolean
 }
 
-class GoogleAIModels implements ModelProvider {
+class GoogleAIModel implements ModelProvider {
     type = "google";
     maxTokens = 1024;
-    googleMessages: Array<number>;
-    model: string;
-    modelClient: Anthropic;
+    googleMessages: Array<GoogleMessage>;
+    modelName: string;
+    modelClient: GoogleGenAI;
     systemPrompt: string;
     tools: ToolsConfig;
     
     constructor(
-        model: string, 
+        modelName: string, 
         apiKey: string,
         systemPrompt: string, 
         tools: ToolsConfig) {
         this.googleMessages = new Array();
-        this.modelClient = new Anthropic({
-            apiKey: apiKey,
-            dangerouslyAllowBrowser: true
-        });
         this.systemPrompt = systemPrompt;
-        this.model = model;
+        this.modelName = modelName;
         this.tools = tools;
+        this.modelClient = new GoogleGenAI({
+            apiKey: apiKey
+        });
     }
 
-    ingestMessage(msg: ModelMessage): Promise<ModelMessage> {
-        
+    getTools(): Array<GoogleTool> {
+        if(this.tools.figma) {
+            return [{
+                functionDeclarations: [{
+                    name: "figma-design-tool",
+                    description: FigmaDesignToolZ.description,
+                    parameters: FigmaDesignToolSchema
+                }]
+            }];
+        } else return []; 
+    }
+
+    static translateToGoogleMessage(msg: ModelMessageO): GoogleMessage {
+        let params: Array<GoogleMessageParams> = new Array();
+        for(const content of msg.contents) {
+            params.push({
+                text: JSON.stringify(content)
+            });
+        }
+        return {
+            role: msg.role,
+            parts: params
+        }
+    }
+
+    //TODO: Are we chunking & pushing the messages the 
+    // same way as anthropic is sending to the model? 
+    // messing this might affect the KV cache & bear much 
+    // more cost
+    processGoogleMessage(modelOutput: GoogleMessage): Promise<AssistantModelMessage> {
+        let msg = new Array<AssistantModelMessageContents>();
+        this.googleMessages.push(modelOutput); 
+        if(modelOutput.parts) {
+            for(let content of modelOutput.parts) {
+                if(content.text) {
+                    try {
+                        let modifiedp: any = JSON.parse(content.text);
+                        // Validate using Zod
+                        const validationResult = AssistantModelMessageSchema.safeParse(modifiedp);
+                        if(validationResult.success) {
+                            // console.log("Model output conforms to the schema, got this messages array: ",
+                            // modifiedp.messages);
+                            let modifiedpv = modifiedp as AssistantModelMessageO;
+                            // this.googleMessages.push(GoogleAIModel.translateToGoogleMessage(modifiedpv));
+                            msg = msg.concat(modifiedpv.contents);
+                        } else {
+                            console.warn("Model output message does not conform to the schema");
+                            return Promise.reject(
+                                new Error(`Validation errors:, validationResult.error Received data: ${content.text}`));
+                        }
+                    } catch(e) {
+                        console.log(`Parsing model output as JSON probably failed. Got LLM output ${content.text}`);
+                        return Promise.reject(new Error(`Error when processing LLM response ${e}`));
+                    }
+                }
+                if(content.functionCall) {
+                    if(content.functionCall.name === "figma-design-tool") {
+                        msg.push({
+                            type: "tool_use",
+                            name: "figma-design-tool",
+                            content: {
+                                input: FigmaDesignToolZ.safeParse(content.functionCall.args) as 
+                                        unknown as FigmaDesignToolInput
+                            }
+                        });
+                        // this.googleMessages.push({
+                        //     role: "assistant",
+                        //     parts: [content]
+                        // });
+                    } else {
+                        return Promise.reject(new Error(`Model evoked an unexpected tool ${content}`));
+                    }
+                }
+            }
+            return Promise.resolve({
+                role: "assistant",
+                contents: msg
+            });
+        }
+        else {
+            return Promise.reject(
+                new Error(`Did not find any parts in the modelOutput ${modelOutput}`));
+        }
+    }
+
+    async ingestUserMessage(msg: UserModelMessage): Promise<AssistantModelMessage> {
+        for(let content of msg.contents) {
+            if(content.type === "tool_result") {
+                this.googleMessages.push({
+                    role: msg.role,
+                    parts: [{
+                        functionResponse: {
+                            id: content.content.id,
+                            name: content.name,
+                            //TODO: Check if this can be handled any better?
+                            response: content.content as Record<string, any>,
+                            willContinue: false
+                        }
+                    }]
+                });
+            } else {
+                this.googleMessages.push(
+                    GoogleAIModel.translateToGoogleMessage(
+                        msg as ModelMessageO));
+            }
+        }
+        let modelOutput = await this.modelClient.models.generateContent({
+            model: this.modelName,
+            contents: this.googleMessages,
+            config: {
+                systemInstruction: this.systemPrompt,
+                tools: this.getTools(),
+                toolConfig: {
+                    functionCallingConfig: {
+                        mode: FunctionCallingConfigMode.AUTO
+                    }
+                },
+                responseJsonSchema: ModelMessageSchema
+            }
+        }); 
+        console.debug(`Got this direct model output: ${modelOutput}`);
+        console.dir(modelOutput, { depth: null });
+        if(modelOutput.candidates && modelOutput.candidates[0] && 
+            modelOutput.candidates[0].content) {
+            let response = modelOutput.candidates[0].content;
+            return this.processGoogleMessage(response);
+        } else {
+            return Promise.reject(new Error(`Recieved no candidates from the Google API ${modelOutput}`));
+        }
     }
 }
 
@@ -75,7 +206,7 @@ class AnthropicModel implements ModelProvider {
         this.tools = tools;
     }
 
-    async ingestMessage(msg: UserModelMessage): Promise<AssistantModelMessage> {
+    async ingestUserMessage(msg: UserModelMessage): Promise<AssistantModelMessage> {
         for(let content of msg.contents) {
             if(content.type === "tool_result") {
                 this.anthMessages.push({
@@ -118,21 +249,34 @@ class AnthropicModel implements ModelProvider {
         }
     }
 
-    async processAnthMessage(modelOutput: Array<BetaContentBlockParam>): Promise<AssistantModelMessage> {
+    //TODO: Are we chunking & pushing the messages the 
+    // same way as anthropic is sending to the model? 
+    // messing this might affect the KV cache & bear much 
+    // more cost
+    processAnthMessage(modelOutput: Array<BetaContentBlockParam>): 
+    Promise<AssistantModelMessage> {
         let msg = new Array<AssistantModelMessageContents>(); 
+        this.anthMessages.push({
+            role: "assistant",
+            content: modelOutput
+        }); 
         for(let content of modelOutput) {
             if(content.type === "tool_use") {
-                msg.push({
-                    type: "tool_use",
-                    name: "figma-design-tool",
-                    content: {
-                        input: content.input as FigmaDesignToolInput
-                    }
-                });
-                this.anthMessages.push({
-                    role: "user",
-                    content: [content]
-                });
+                if(content.name === "figma-design-tool") {
+                    msg.push({
+                        type: "tool_use",
+                        name: "figma-design-tool",
+                        content: {
+                            input: content.input as FigmaDesignToolInput
+                        }
+                    });
+                    // this.anthMessages.push({
+                    //     role: "assistant",
+                    //     content: [content]
+                    // });
+                } else {
+                    return Promise.reject(new Error(`Model evoked an unexpected tool ${content}`));
+                }
             } else if(content.type === "text") {
                 try {
                     let modifiedp: any = JSON.parse(content.text);
@@ -142,7 +286,7 @@ class AnthropicModel implements ModelProvider {
                         // console.log("Model output conforms to the schema, got this messages array: ",
                         // modifiedp.messages);
                         let modifiedpv = modifiedp as AssistantModelMessageO;
-                        this.anthMessages.push(AnthropicModel.translateToAnthMessage(modifiedpv));
+                        // this.anthMessages.push(AnthropicModel.translateToAnthMessage(modifiedpv));
                         msg = msg.concat(modifiedpv.contents);
                     } else {
                         console.warn("Model output message does not conform to the schema");
@@ -155,10 +299,10 @@ class AnthropicModel implements ModelProvider {
                 }
             }
         }
-        return {
+        return Promise.resolve({
             role: "assistant",
             contents: msg
-        }
+        });
     }
 
     getTools(): Array<AnthTool> {
@@ -187,4 +331,4 @@ class AnthropicModel implements ModelProvider {
     }
 }
 
-export { ModelProvider, ToolsConfig, AnthropicModel }; 
+export { ModelProvider, ToolsConfig, AnthropicModel, GoogleAIModel }; 
