@@ -1,6 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { GetApiKey, GetApiKeyResponse, ModelMessage, SetApiKey, UserModelMessage, UserOutput } from "../messages.js";
+  import type { 
+    GetThreadsList, GetApiKeysResponse, GetApiKeys,
+    ModelMessage, SetApiKeys, UserModelMessage, 
+    UserOutput, Thread, ThreadBase,
+    GetThreads,
+    ModelMode
+  } from "../messages.js";
   import Header from './header.svelte';
   import Messages from './messages.svelte';
   import Input from './input.svelte';
@@ -9,89 +15,185 @@
   import type { CommandExecutor } from '../common.js';
   import { FigmaPluginCommandsDispatcher } from './uicommandsexecutor.js';
 
+  interface ApiKeys {
+    anthropicKey: string,
+    googleKey: string
+  }
+
   let anthropicApiKey: string = $state("");
   let googleApiKey: string = $state("");
   let userInput: string = $state("");
   let messages: Array<ModelMessage> = $state([]);
-  let modelMode: "anthropic" | "google" = $state("anthropic");
-  let modelName: string = $state("claude-haiku-4-5-20251001");
+  let currentThread: number = $state(-1);
+  let currentModelMode: ModelMode = $state("anthropic");
+  let currentModelName: string = $state("claude-haiku-4-5-20251001");
   let isLoading = false;
   let cmdExec: CommandExecutor;
   let showApiKeyOverlay = $state(false);
-  let threadsMap = new Map<string,FigmaAgentThread>();
+  let threadsList = new Map<number,ThreadBase>();
   const modelOptions = new Map([
     ['claude-opus-4', 'Claude Opus 4' ],
-    ['claude-opus-4', 'Claude Sonnet 4' ],
+    ['claude-sonnet-4', 'Claude Sonnet 4' ],
+    ['claude-haiku-4-5-20251001', 'Claude Haiku 4.5' ],
     ['gemini-3-pro-preview', 'Gemini 3 Pro'],
     ['gemini-3-flash-preview', 'Gemini 3 Flash'],
     ['gemini-2-pro', 'Gemini 2 Pro'],
     ['gemini-2.5-flash', 'Gemini 2.5 Flash'],
     ['gemini-2.5-flash-lite', 'Gemini 2.5 Flash Lite']
   ]);
-
-  let userOutputSurfacing = (msg: Array<UserOutput>) => {
-    console.log(`Got message from the model for the user: ${msg}`);
-    messages = [...currentThreadAgent.messages];
-    return;
-  };
-
-  let currentThreadAgent: FigmaAgentThread;
+  let loadedThreadAgents: Map<number,FigmaAgentThread> = new Map();
 
   // Load API key on mount
-  onMount(() => {
+  onMount(async () => {
     try {
       console.log('App mounted');
       // Initialize the command executor after component is mounted
       cmdExec = new FigmaPluginCommandsDispatcher();
-
-      setupNewThread().then(thread => {
-        currentThreadAgent = thread;
-      })
-      .catch(e => {
-        console.error(e);
-        console.dir(e);
-      });
-    } catch (error) {
-      console.error('Error in onMount:', error);
-    }
+      await initialSetup();
+    } catch(e) {
+      console.error(e);
+      console.dir(e);
+    };
   });
 
-  function setupNewThread(): Promise<FigmaAgentThread> {
-    if(anthropicApiKey === "") {
-      let getApiKeysMsg: GetApiKey = {
-        type: "get_api_keys"
-      } 
-      parent.postMessage({ pluginMessage: getApiKeysMsg }, '*');
-      return new Promise((res,rej) => {
-        // Listen for API key response
-        window.addEventListener('message', (event) => {
-          const msg = event.data.pluginMessage;
-          if(msg && msg.type === "get_api_keys_response" && 
-            (msg.anthropicKey || msg.googleKey)) {
-            anthropicApiKey = (msg as GetApiKeyResponse).anthropicKey;
-            googleApiKey = (msg as GetApiKeyResponse).googleKey;
-          } else {
-            rej(new Error(`Couldn't obtain API keys ${event}`));
-          }
-        });
-        setTimeout(() => {
-          rej(new Error(`Timed out fetching API key`));
-        },1500);
-      }).then(async (key: string) => {
-          // Recreate the agent with the loaded API key
-          await new FigmaAgentThread(
-            1,
-            modelName,
-            key,
-            cmdExec,
-            userOutputSurfacing
-          );
-      }).catch(err => err);  
+  let userOutputSurfacing = (id: number, msg: Array<UserOutput>) => {
+    console.log(`Got message from the model for the user: ${msg}`);
+    messages = [...loadedThreadAgents.get(id).messages];
+    return;
+  };
+
+  function setupApiKey(): Promise<ApiKeys> {
+    let getApiKeysMsg: GetApiKeys = {
+      type: "get_api_keys"
+    } 
+    parent.postMessage({ pluginMessage: getApiKeysMsg }, '*');
+    return new Promise((res,rej) => {
+      let getApiKeysHandler = (event) => {
+        const msg = event.data.pluginMessage;
+        if(msg && msg.type === "get_api_keys_response" && 
+          (msg.anthropicKey || msg.googleKey)) {
+          //Remove handler
+          window.removeEventListener('message',getApiKeysHandler);
+          anthropicApiKey = (msg as GetApiKeysResponse).anthropicKey;
+          googleApiKey = (msg as GetApiKeysResponse).googleKey;
+          res({
+            anthropicKey: anthropicApiKey,
+            googleKey: googleApiKey
+          });
+        } else {
+          rej(new Error(`Couldn't obtain API keys ${event}`));
+        }
+      };
+      window.addEventListener('message', getApiKeysHandler);
+      setTimeout(() => {
+        rej(new Error(`Timed out fetching API key`));
+      },1000);
+    });
+  }
+
+  function getStoredThreadsList(): 
+    Promise<Array<ThreadBase>> {
+    const getThreadsListMsg: GetThreadsList = {
+      type: "get_threads_list"
+    };
+    parent.postMessage({ pluginMessage: getThreadsListMsg }, '*');
+    return new Promise((res,rej) => {
+      let getThreadsListHandler = (event) => {
+        const msg = event.data.pluginMessage;
+        if(msg && msg.type === "get_threads_list_response" && 
+          msg.threads) {
+          //Remove handler
+          window.removeEventListener('message',getThreadsListHandler);
+          res(msg.threads);
+        } else {
+          rej(new Error(`Couldn't obtain threads list ${event}`));
+        }
+      };
+      window.addEventListener('message', getThreadsListHandler);
+      setTimeout(() => {
+        rej(new Error(`Timed out fetching threads list`));
+      },2000);
+    });
+  }
+
+  function getStoredThreads(ids: Array<number>): 
+    Promise<Array<Thread>> {
+    const getThreadsMsg: GetThreads = {
+      type: "get_threads",
+      ids: ids
+    };
+    parent.postMessage({ pluginMessage: getThreadsMsg }, '*');
+    return new Promise((res,rej) => {
+      let getThreadsHandler = (event) => {
+        const msg = event.data.pluginMessage;
+        if(msg && msg.type === "get_threads_response" && 
+          msg.threads) {
+          //Remove handler
+          window.removeEventListener('message',getThreadsHandler);
+          res(msg.threads);
+        } else {
+          rej(new Error(`Couldn't obtain threads ${event}`));
+        }
+      };
+      window.addEventListener('message', getThreadsHandler);
+      setTimeout(() => {
+        rej(new Error(`Timed out fetching threads`));
+      },2000);
+    });
+  }
+
+  function initialiseAgentsForThreads(threads: Array<Thread>) {
+    //Assumes the keys are already set
+    for(let thread of threads) {
+      let agent = 
+        new FigmaAgentThread(
+          thread.id,thread.lastModelUsed,
+          //TODO: What if the current model 
+          // selected does not match the mode? 
+          thread.modelMode === "anthropic" ? 
+            anthropicApiKey : googleApiKey,
+          cmdExec,
+          userOutputSurfacing.bind(thread.id)
+        );
+      //Initialise entire history
+      agent.messages = thread.msgs;
+      loadedThreadAgents.set(thread.id,agent);
     }
   }
 
+  function setupNewthread(id: number) {
+    let newT: Thread = {
+      id: id,
+      modelMode: currentModelMode,
+      lastModelUsed: currentModelName,
+      title: String(id),
+      msgs: []
+    };
+
+    threadsList.set(id,newT);
+    initialiseAgentsForThreads([newT]);
+  }
+
+  async function initialSetup() {
+    let keys = await setupApiKey();
+    anthropicApiKey = keys.anthropicKey;
+    googleApiKey = keys.googleKey;
+    let list = await getStoredThreadsList();
+    list.map(val => {
+      threadsList.set(val.id,val);
+    });
+    if(threadsList.size > 0) {
+      currentThread = Math.max(...threadsList.keys());
+      currentModelMode = threadsList.get(currentThread).modelMode;
+      currentModelName = threadsList.get(currentThread).lastModelUsed;
+      let threads = await getStoredThreads([currentThread]);
+      initialiseAgentsForThreads(threads);
+    }
+    return;
+  }
+
   function saveApiKey() {
-    let setKeyMsg: SetApiKey = {
+    let setKeyMsg: SetApiKeys = {
         type: 'set_api_keys',
         anthropicKey: anthropicApiKey,
         googleKey: googleApiKey
@@ -121,31 +223,27 @@
     } satisfies UserModelMessage;
     messages.push(userMessage);
     messages = [...messages];
-    currentThreadAgent.ingestUserInput(userMessage)
+    loadedThreadAgents.get(currentThread).
+    ingestUserInput(userMessage)
     .catch(e => {
       console.error(e);
     });
   }
 
   async function sendMessage() {
-    if (!userInput.trim() || isLoading) return;
-
-    if(!anthropicApiKey) {
+    if (!userInput.trim() || isLoading) 
+      return;
+    if(!anthropicApiKey && !googleApiKey) {
       alert('Please set your API key in settings first');
       return;
-    } else if(!currentThreadAgent) {
+    } else if(currentThread === -1) {
       console.log(`Setting up a new thread given none is initialised currently`);
-      setupNewThread().then(thread => {
-        currentThreadAgent = thread;
-        processUserMessage();
-      })
-      .catch(e => {
-        console.error(e);
-        console.dir(e);
-      });
-    } else {
-      processUserMessage();
+      if(threadsList.size > 0)
+        currentThread = Math.max(...threadsList.keys());
+      else currentThread = 1;
+      setupNewthread(currentThread);
     }
+    processUserMessage();
   }
 
   function onModeChange(modelKey: string) {
@@ -189,7 +287,7 @@
     {isLoading}
     onSend={sendMessage}
     onKeyPress={handleKeyPress}
-    selectedModel={modelName}
+    selectedModel={currentModelName}
     onModelChange={onModeChange}
   />
 

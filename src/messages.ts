@@ -8,37 +8,38 @@ export interface Thread {
     id: number, 
     title: string, 
     msgs: ModelMessage[],
-    modelType: ModelMode
+    modelMode: ModelMode,
+    lastModelUsed: string
 }
 
-export type ThreadBase = Exclude<Thread,"msgs">;
+export type ThreadBase = Omit<Thread,"msgs">;
 
 export interface ClosePlugin {
     type: "close_plugin"
 }
 
-export interface GetApiKey {
+export interface GetApiKeys {
     type: "get_api_keys"
 }
 
-export interface SetApiKey {
+export interface SetApiKeys {
     type: "set_api_keys",
     anthropicKey?: string,
     googleKey?: string
 }
 
-export interface GetApiKeyResponse {
+export interface GetApiKeysResponse {
     type: "get_api_keys_response",
     anthropicKey?: string,
     googleKey?: string
 }
 
 export interface GetThreadsList {
-    type: "get_all_threads_list"
+    type: "get_threads_list"
 }
 
 export interface GetThreadsListResponse {
-    type: "get_threads_response",
+    type: "get_threads_list_response",
     threads: Array<ThreadBase>
 }
 
@@ -60,12 +61,12 @@ export interface SaveThreads {
 }
 
 export type UIDispatchedMessage = 
-    GetApiKey | SetApiKey | 
+    GetApiKeys | SetApiKeys | 
     ClosePlugin | ExecuteCommands | 
     GetThreadsList | GetThreads | 
     SaveThreads;
 export type PluginDispatchedMessage = 
-    GetApiKeyResponse | ExecuteCommandsResult | 
+    GetApiKeysResponse | ExecuteCommandsResult | 
     GetThreadsListResponse | GetThreadsResponse;
 
 export interface FigmaDesignToolResult {

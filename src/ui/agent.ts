@@ -70,7 +70,7 @@ class FigmaAgentThread {
         this.messages.push(userMessage);
         this.status = "running";
         while(this.status === "running") {
-            const modelOutput = await this.model.ingestMessage(userMessage);
+            const modelOutput = await this.model.ingestUserMessage(userMessage);
             this.messages.push(modelOutput);
             let processedOutput = await this.processModelOutput(modelOutput);
             this.userSurfacingCb(processedOutput.userOutput);

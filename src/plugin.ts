@@ -1,5 +1,5 @@
 import { 
-  GetApiKeyResponse, 
+  GetApiKeysResponse, 
   UIDispatchedMessage, 
   GetThreadsListResponse,
   ThreadBase,
@@ -25,7 +25,7 @@ figma.ui.onmessage = async (msg: UIDispatchedMessage) => {
         await figma.clientStorage.getAsync('anthropic_api_key');
       const googleKey = 
         await figma.clientStorage.getAsync('google_api_key');
-      const res: GetApiKeyResponse = {
+      const res: GetApiKeysResponse = {
         type: "get_api_keys_response",
         anthropicKey: anthropicKey,
         googleKey: googleKey
@@ -33,7 +33,7 @@ figma.ui.onmessage = async (msg: UIDispatchedMessage) => {
       figma.ui.postMessage(res);
     } catch(error) {
       console.error('Error getting API keys:', error);
-      const res: GetApiKeyResponse = {
+      const res: GetApiKeysResponse = {
         type: "get_api_keys_response"
       }
       figma.ui.postMessage(res);
@@ -61,7 +61,7 @@ figma.ui.onmessage = async (msg: UIDispatchedMessage) => {
         status: 'failure'
       });
     }
-  } else if(msg.type === "get_all_threads_list") {
+  } else if(msg.type === "get_threads_list") {
     try {
       let keys = await figma.clientStorage.keysAsync();
       let threads = new Array<ThreadBase>();
@@ -73,7 +73,7 @@ figma.ui.onmessage = async (msg: UIDispatchedMessage) => {
         }
       });
       const res: GetThreadsListResponse = {
-        type: "get_threads_response",
+        type: "get_threads_list_response",
         threads: threads
       }
       figma.ui.postMessage(res);
@@ -83,8 +83,8 @@ figma.ui.onmessage = async (msg: UIDispatchedMessage) => {
   } else if(msg.type === "get_threads") {
     try {
       let threads = new Array<Thread>();
-      msg.ids.map(async (id) => {
-        let thread: ThreadBase = 
+      msg.ids.map(async (id: number) => {
+        let thread: Thread = 
           await figma.clientStorage.getAsync(
             "agent_thread_" + String(id));
           threads.push(thread);
