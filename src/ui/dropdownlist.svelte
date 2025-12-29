@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { type DropdownCategory } from '../common';
+  import { type DropdownItem, 
+    type DropdownCategory } from '../common';
 
   interface Props {
     items: Map<string,DropdownCategory>;
-    selectedKey: string;
+    selectedItemKey: string;
     onSelect: (value: string) => void;
     position?: 'up' | 'down';
     align?: 'left' | 'right';
@@ -11,7 +12,7 @@
 
   let {
     items,
-    selectedKey,
+    selectedItemKey,
     onSelect,
     position = 'down',
     align = 'left'
@@ -20,21 +21,21 @@
 
 <div class="dropdown-list" class:position-up={position === 'up'} 
   class:align-right={align === 'right'}>
-  {#each items as [id, category], index (id)}
+  {#each items as [catkey, cat], index (catkey)}
     
     {#if index > 0}
       <hr class="dropdown-divider" />
     {/if}
 
-    {#if category.label}
-      <div class="dropdown-header">{category.label}</div>
+    {#if cat.label}
+      <div class="dropdown-header">{cat.label}</div>
     {/if}
 
-    {#each category.items as item (item.key)}
+    {#each cat.items as [key,item] (key)}
       <button
         class="dropdown-item"
-        class:selected={item.key === selectedKey}
-        onclick={() => onSelect(item.key)}
+        class:selected={key === selectedItemKey}
+        onclick={() => onSelect(key)}
         type="button"
       >
         {item.label}

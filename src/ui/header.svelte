@@ -6,7 +6,7 @@
   import { type DropdownCategory } from '../common';
 
   interface Props {
-    selectedChatKey: string;
+    selectedChatKey: number;
     chats: Map<string, DropdownCategory>;
     onChatChange: (chat: string) => void;
     onManageApiKeys: () => void;
@@ -16,11 +16,16 @@
 
   const moreOptions = new Map([
     [ 'manage-api-keys', {
-        id: "manage-api-keys",
-        items: [{
-          key: "manage-api-keys",
-          label: "Manage Api Keys"
-        }]
+        key: "manage-api-keys",
+        items: new Map([
+          [
+            "manage-api-keys", 
+            {
+              key: "manage-api-keys",
+              label: "Manage Api Keys"
+            }
+          ]
+        ])
       }]
   ]);
 
@@ -48,12 +53,14 @@
 <svelte:window onclick={handleClickOutside} />
 
 <div class="header">
-  <Dropdown
-    items={chats}
-    selectedItem={selectedChatKey}
-    onSelect={onChatChange}
-    position="down"
-  />
+  {#if selectedChatKey > 0}
+    <Dropdown
+      items={chats}
+      selectedItemKey={String(selectedChatKey)}
+      onSelect={onChatChange}
+      position="down"
+    />
+  {/if}
   <div class="header-actions">
     <button class="icon-button" title="New">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -71,7 +78,7 @@
       {#if isMoreDropdownOpen}
         <DropdownList
           items={moreOptions}
-          selectedKey=""
+          selectedItemKey=""
           position="down"
           align="right"
           onSelect={onMoreOptionSelect}

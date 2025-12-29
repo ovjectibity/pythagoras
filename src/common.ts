@@ -72,12 +72,24 @@ export const modelOptions: Map<string,Model> = new Map([
     ['gemini-2.5-flash-lite', Gemini25FlashLite]
 ]);
 
+export type DropdownCategory = {
+    label?: string;
+    key: string
+    items: Map<string,DropdownItem>
+}
+
 export type DropdownItem = {
     key: string;
     label: string;
 };
 
-export type DropdownCategory = {
-    items: DropdownItem[];
-    label?: string;
+export let getItemFromKey = 
+(items: Map<string, DropdownCategory>, key: string): 
+DropdownItem | undefined => {
+    let ret: DropdownItem | undefined = undefined;
+    items.forEach((val,catkey) => {
+        if(val.items.has(key))
+            ret = val.items.get(key);
+    });
+    return ret;
 };

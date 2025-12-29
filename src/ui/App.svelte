@@ -12,7 +12,7 @@
   import Input from './input.svelte';
   import ManageKeysOverlay from './managekeysoverlay.svelte';
   import { FigmaAgentThread } from "./agent.js";
-  import type { CommandExecutor, DropdownCategory } from '../common.js';
+  import type { CommandExecutor, DropdownCategory, DropdownItem } from '../common.js';
   import { FigmaPluginCommandsDispatcher } from './uicommandsexecutor.js';
 
   //TODO: Handle plugin closure by saving all the loaded threads
@@ -29,7 +29,7 @@
   let messages: Array<ModelMessage> = $state([]);
   let currentThread: number = $state(-1);
   let currentModelMode: ModelProvider = $state("anthropic");
-  let currentModelName: string = $state("claude-haiku-4-5-20251001");
+  let currentModelKey: string = $state("claude-haiku-4-5-20251001");
   let isLoading = false;
   let cmdExec: CommandExecutor;
   let showApiKeyOverlay = $state(false);
@@ -58,12 +58,15 @@
   let getThreadCategories = function(
     threadsList: Map<number, ThreadBase>): 
     Map<string, DropdownCategory> {
-    const allItems = Array.from(threadsList.values()).map(thread => ({
-      key: thread.id.toString(),
-      label: thread.title
-    }));
+    let allItems = new Map<string,DropdownItem>();
+    threadsList.forEach((val,key) => {
+      allItems.set(val.id.toString(),{
+        key: val.id.toString(),
+        label: val.title
+      });
+    });
     return new Map([
-      ['recent', { id: "recent", items: allItems }]
+      ['recent', { key: "recent", items: allItems }]
     ]);
   }
 
@@ -86,13 +89,14 @@
             googleKey: googleApiKey
           });
         } else {
-          rej(new Error(`Couldn't obtain API keys ${event}`));
+          console.dir(msg);
+          rej(new Error(`Couldn't obtain API keys ${event} ${msg}`));
         }
       };
       window.addEventListener('message', getApiKeysHandler);
       setTimeout(() => {
         rej(new Error(`Timed out fetching API key`));
-      },1000);
+      },2000);
     });
   }
 
@@ -170,7 +174,7 @@
     let newT: Thread = {
       id: id,
       modelMode: currentModelMode,
-      lastModelUsed: currentModelName,
+      lastModelUsed: currentModelKey,
       title: String(id),
       msgs: []
     };
@@ -190,7 +194,7 @@
     if(threadsList.size > 0) {
       currentThread = Math.max(...threadsList.keys());
       currentModelMode = threadsList.get(currentThread).modelMode;
-      currentModelName = threadsList.get(currentThread).lastModelUsed;
+      currentModelKey = threadsList.get(currentThread).lastModelUsed;
       let threads = await getStoredThreads([currentThread]);
       initialiseAgentsForThreads(threads);
     }
@@ -282,7 +286,7 @@
   <!-- TODO: Fix the use of currentThread as label here  -->
   <Header
     chats={getThreadCategories(threadsList)}
-    selectedChatKey={String(currentThread)}
+    selectedChatKey={currentThread}
     onChatChange={onChatChange}
     onManageApiKeys={openApiKeyOverlay}
   />
@@ -294,7 +298,7 @@
     {isLoading}
     onSend={sendMessage}
     onKeyPress={handleKeyPress}
-    selectedModel={currentModelName}
+    selectedModel={currentModelKey}
     onModelChange={onModeChange}
   />
 
