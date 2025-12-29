@@ -15,6 +15,9 @@
   import type { CommandExecutor, DropdownCategory } from '../common.js';
   import { FigmaPluginCommandsDispatcher } from './uicommandsexecutor.js';
 
+  //TODO: Handle plugin closure by saving all the loaded threads
+  //TODO: Handle model switches
+
   interface ApiKeys {
     anthropicKey: string,
     googleKey: string

@@ -7,7 +7,6 @@ import {
   GetThreadsResponse
 } from "./messages.js";
 import { FigmaExecutor } from "./plugincommandsexecutor.js";
-// import figma from "@figma/plugin-typings";
 
 // This shows the HTML page in "ui.html".
 figma.showUI(__html__, { width: 400, height: 800 });

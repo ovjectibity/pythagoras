@@ -64,7 +64,7 @@
   <div class="input-controls">
     <Dropdown
       items={modelCategories}
-      selectedKey={selectedModel}
+      selectedItem={selectedModel}
       onSelect={onModelChange}
       disabled={isLoading}
       position="up"

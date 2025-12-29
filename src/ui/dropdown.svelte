@@ -6,7 +6,7 @@
 
   interface Props {
     items: Map<string,DropdownCategory>;
-    selectedKey: string;
+    selectedItem: string;
     onSelect: (key: string) => void;
     disabled?: boolean;
     position?: 'up' | 'down';
@@ -14,7 +14,7 @@
 
   let {
     items,
-    selectedKey = $bindable(),
+    selectedItem,
     onSelect,
     disabled = false,
     position = 'down'
@@ -41,7 +41,7 @@
   }
 
   run(() => {
-    selectedKey = selectedKey
+    selectedItem = selectedItem
   });
 </script>
 
@@ -54,7 +54,7 @@
     {disabled}
     type="button"
   >
-    <span>{items.get(selectedKey)}</span>
+    <span>{items.get(selectedItem)}</span>
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" class="chevron" class:open={isOpen}>
       <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
@@ -63,7 +63,7 @@
   {#if isOpen}
     <DropdownList
       {items}
-      selectedKey={selectedKey}
+      selectedKey={selectedItem}
       {position}
       onSelect={selectItem}
     />

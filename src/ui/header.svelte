@@ -50,7 +50,7 @@
 <div class="header">
   <Dropdown
     items={chats}
-    selectedKey={selectedChatKey}
+    selectedItem={selectedChatKey}
     onSelect={onChatChange}
     position="down"
   />

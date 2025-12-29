@@ -255,6 +255,21 @@ body {
   transform: rotate(180deg);
 }
 
+.dropdown-header {
+  color: #ffffff;
+  font-size: 13px;
+  padding: 6px 8px;
+  user-select: none;
+}
+
+.dropdown-divider {
+  border: none;
+  border-top: 0.5px solid #e5e7eb;
+  margin: 4px 0;
+  width: 100%;
+  /* padding: 6px 8px; */
+}
+
 .dropdown-list {
   display: flex;
   flex-direction: column;
