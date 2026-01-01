@@ -50,8 +50,13 @@
   });
 
   let userOutputSurfacing = (id: number, msg: Array<UserOutput>) => {
-    console.log(`Got message from the model for the user: ${msg}`);
-    messages = [...loadedThreadAgents.get(id).messages];
+    console.log(`Got message from the model for the user: ${msg} ${id}`);
+    let agent = loadedThreadAgents.get(id);
+    try {
+      messages = [...agent.messages];
+    } catch(e) {
+      console.log(`Unable to update message thread  ${msg} ${id} ${agent}`);
+    }
     return;
   };
 
@@ -166,7 +171,7 @@
           thread.modelMode === "anthropic" ? 
             anthropicApiKey : googleApiKey,
           cmdExec,
-          userOutputSurfacing.bind(thread.id)
+          userOutputSurfacing.bind(null,thread.id)
         );
       //Initialise entire history
       agent.messages = thread.msgs;

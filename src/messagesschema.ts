@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import type { ModelMessage } from './messages';
-import { FigmaDesignToolZ, ExecuteCommandsResultZ } from './figmatoolschema';
+import type { ModelMessageO } from './messages';
 
 const UserInputZ = z.object({
   type: z.literal("user_input"),
@@ -22,34 +21,14 @@ const AssistantWorkflowInstructionZ = z.object({
   content: z.literal("stop")
 });
 
-const FigmaDesignToolResultZ = z.object({
-  type: z.literal("tool_result"),
-  name: z.literal("figma-design-tool"),
-  content: ExecuteCommandsResultZ,
-});
-
-const ToolResultZ = FigmaDesignToolResultZ;
-
-const FigmaDesignToolUseZ = z.object({
-  type: z.literal("tool_use"),
-  name: z.literal("figma-design-tool"),
-  content: z.object({
-    input: FigmaDesignToolZ,
-  }),
-});
-
-const ToolUseZ = FigmaDesignToolUseZ;
-
 const UserModelMessageContentsZ = z.union([
   UserInputZ, 
-  AgentWorkflowInstructionZ, 
-  ToolResultZ
+  AgentWorkflowInstructionZ
 ]);
 
 const AssistantModelMessageContentsZ = z.union([
   UserOutputZ, 
-  AssistantWorkflowInstructionZ, 
-  ToolUseZ
+  AssistantWorkflowInstructionZ
 ]);
 
 export const UserModelMessageZ = z.object({
@@ -65,7 +44,7 @@ export const AssistantModelMessageZ = z.object({
 export const ModelMessageZ = z.discriminatedUnion("role", [
   UserModelMessageZ,
   AssistantModelMessageZ
-]) satisfies z.ZodType<ModelMessage>;
+]) satisfies z.ZodType<ModelMessageO>;
 
 export const ModelMessageSchema = z.toJSONSchema(ModelMessageZ) as any;
 export const AssistantModelMessageSchema = z.toJSONSchema(AssistantModelMessageZ) as any;

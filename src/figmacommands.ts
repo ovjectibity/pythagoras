@@ -427,10 +427,6 @@ export interface SceneProperties {
   locked?: boolean;
 }
 
-export interface RelationalProperties {
-    parentNode: number
-}
-
 export interface CreateNode {
     type: "create-node",
     nodeName: "rectangle" | "frame" | "group" | 

@@ -194,10 +194,6 @@ const FramePropertiesZ = z.object({
   gridColumnSizes: z.array(GridTrackSizeZ).optional(),
 }).describe("Frame-specific properties for Figma nodes");
 
-const RelationalPropertiesZ = z.object({
-    parentNode: z.number(),
-}).describe("Relational properties for Figma nodes");
-
 // Command Schemas
 const CreateNodeZ = z.object({
   type: z.literal("create-node"),

@@ -15,7 +15,7 @@ import { FunctionCallingConfigMode, GoogleGenAI,
 } from "@google/genai";
 import { Tool as AnthTool } from "@anthropic-ai/sdk/resources";
 import { FigmaDesignToolZ, FigmaDesignToolSchema } from "../figmatoolschema.js";
-import { AssistantModelMessageSchema, ModelMessageSchema } from "../messagesschema.js";
+import { AssistantModelMessageSchema, AssistantModelMessageZ, ModelMessageSchema } from "../messagesschema.js";
 import { BetaContentBlockParam, BetaMessageParam } from "@anthropic-ai/sdk/resources/beta.mjs";
 
 interface ModelProvider {
@@ -94,7 +94,7 @@ class GoogleAIModel implements ModelProvider {
                     try {
                         let modifiedp: any = JSON.parse(content.text);
                         // Validate using Zod
-                        const validationResult = AssistantModelMessageSchema.safeParse(modifiedp);
+                        const validationResult = AssistantModelMessageZ.safeParse(modifiedp);
                         if(validationResult.success) {
                             // console.log("Model output conforms to the schema, got this messages array: ",
                             // modifiedp.messages);
@@ -162,6 +162,7 @@ class GoogleAIModel implements ModelProvider {
                         msg as ModelMessageO));
             }
         }
+        // console.dir(ModelMessageSchema);
         let modelOutput = await this.modelClient.models.generateContent({
             model: this.modelName,
             contents: this.googleMessages,
@@ -172,8 +173,8 @@ class GoogleAIModel implements ModelProvider {
                     functionCallingConfig: {
                         mode: FunctionCallingConfigMode.AUTO
                     }
-                }
-                // responseJsonSchema: ModelMessageSchema
+                },
+                responseJsonSchema: ModelMessageSchema
             }
         }); 
         console.debug(`Got this direct model output: ${modelOutput}`);
@@ -291,7 +292,7 @@ class AnthropicModel implements ModelProvider {
                 try {
                     let modifiedp: any = JSON.parse(content.text);
                     // Validate using Zod
-                    const validationResult = AssistantModelMessageSchema.safeParse(modifiedp);
+                    const validationResult = AssistantModelMessageZ.safeParse(modifiedp);
                     if(validationResult.success) {
                         // console.log("Model output conforms to the schema, got this messages array: ",
                         // modifiedp.messages);
