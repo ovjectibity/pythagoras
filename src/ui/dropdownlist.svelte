@@ -28,7 +28,7 @@
     {/if}
 
     {#if cat.label}
-      <div class="dropdown-header">{cat.label}</div>
+      <div class="dropdown-header" class:disabled={cat.disabled}>{cat.label}</div>
     {/if}
 
     {#each cat.items as [key,item] (key)}
