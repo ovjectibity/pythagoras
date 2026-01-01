@@ -37,6 +37,7 @@
         class:selected={key === selectedItemKey}
         onclick={() => onSelect(key)}
         type="button"
+        disabled={cat.disabled}
       >
         {item.label}
       </button>

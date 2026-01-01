@@ -2,13 +2,13 @@ import {
     ExecuteCommands, ExecuteCommandsResult
 } from "./figmacommands.js";
 
-export type ModelProvider = "anthropic" | "google";
+export type ModelMode = "anthropic" | "google" | "not-set";
 
 export interface Thread {
     id: number, 
     title: string, 
     msgs: ModelMessage[],
-    modelMode: ModelProvider,
+    modelMode: ModelMode,
     lastModelUsed: string
 }
 

@@ -6,7 +6,7 @@ import {
     UserModelMessage,
     AssistantModelMessage,
     AssistantModelMessageContents,
-    ModelProvider as ModelProviderName
+    ModelMode as ModelProviderName
 } from "../messages.js";
 import { FunctionCallingConfigMode, GoogleGenAI, 
     Content as GoogleMessage, 

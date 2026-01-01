@@ -5,8 +5,9 @@ import { ModelMessage,
     FigmaDesignToolInput 
 } from "../messages.js";
 import type { CommandExecutor } from "../common.js";
-import { AnthropicModel } from "./modelprovider.js";
+import { ModelProvider, AnthropicModel, GoogleAIModel } from "./modelprovider.js";
 import { prompts } from "../prompts.js";
+import { ModelMode } from "../messages.js";
 
 interface ProcessedModelOutput {
     userOutput: Array<UserOutput>,
@@ -17,25 +18,43 @@ class FigmaAgentThread {
     messages: Array<ModelMessage>;
     executor: CommandExecutor;
     id: number;
-    model: AnthropicModel;
+    model?: ModelProvider;
+    modelMode: ModelMode;
     userSurfacingCb: (msg: Array<UserOutput>) => void;
     status: "waiting-for-user" | "running" = "waiting-for-user";
 
     constructor(id: number, 
-        model: string,
+        modelMode: ModelMode,
+        modelName: string,
         apiKey: string, 
         executor: CommandExecutor,
         userSurfacingCb: (msg: Array<UserOutput>) => void) {
         this.id = id;
-        this.model = new AnthropicModel(
-            model,apiKey,
-            prompts.systemPrompt,
-            {
-                figma: true
-            });
+        this.modelMode = modelMode;
+        this.setupModel(modelMode, apiKey, modelName);
         this.executor = executor;
         this.messages = new Array();
         this.userSurfacingCb = userSurfacingCb;
+    }
+
+    setupModel(modelMode: ModelMode, modelName: string, apiKey: string) {
+        if(modelMode === "anthropic") {
+            this.model = new AnthropicModel(
+                modelName,apiKey,
+                prompts.systemPrompt,
+                {
+                    figma: true
+                });
+        } else if(modelMode === "google") {
+            this.model = 
+                new GoogleAIModel(
+                    modelName,
+                    apiKey, 
+                    prompts.systemPrompt, 
+                    {
+                        figma: true
+                    });
+        }
     }
 
     processModelOutput(modelOutput: AssistantModelMessage): ProcessedModelOutput
@@ -67,29 +86,33 @@ class FigmaAgentThread {
 
     //TODO: Handle user interruptions: 
     async ingestUserInput(userMessage: UserModelMessage): Promise<void> {
-        this.messages.push(userMessage);
-        this.status = "running";
-        while(this.status === "running") {
-            const modelOutput = await this.model.ingestUserMessage(userMessage);
-            this.messages.push(modelOutput);
-            let processedOutput = await this.processModelOutput(modelOutput);
-            this.userSurfacingCb(processedOutput.userOutput);
-            if(processedOutput.toolInput) {
-                let cmdsResult = await this.executor.executeCommands(
-                    processedOutput.toolInput.commands);
-                userMessage = {
-                    role: "user",
-                    contents: [{
-                        type: "tool_result",
-                        name: "figma-design-tool",
-                        content: cmdsResult
-                    }]
-                };
-                this.messages.push(userMessage);
-            } else {
-                this.status = "waiting-for-user";
-                return Promise.resolve();
-            } 
+        if(!this.model) {
+            console.error(`User input being processed while model is not setup`);
+        } else {
+            this.messages.push(userMessage);
+            this.status = "running";
+            while(this.status === "running") {
+                const modelOutput = await this.model.ingestUserMessage(userMessage);
+                this.messages.push(modelOutput);
+                let processedOutput = await this.processModelOutput(modelOutput);
+                this.userSurfacingCb(processedOutput.userOutput);
+                if(processedOutput.toolInput) {
+                    let cmdsResult = await this.executor.executeCommands(
+                        processedOutput.toolInput.commands);
+                    userMessage = {
+                        role: "user",
+                        contents: [{
+                            type: "tool_result",
+                            name: "figma-design-tool",
+                            content: cmdsResult
+                        }]
+                    };
+                    this.messages.push(userMessage);
+                } else {
+                    this.status = "waiting-for-user";
+                    return Promise.resolve();
+                } 
+            }
         }
     }
 }

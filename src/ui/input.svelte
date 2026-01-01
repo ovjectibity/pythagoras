@@ -1,14 +1,15 @@
 <script lang="ts">
-  import {  } from '../common';
   import Dropdown from './dropdown.svelte';
   import { type Model, 
     type DropdownCategory,
     type DropdownItem,
     modelOptions } from "../common";
+  import { type ModelMode } from '../messages';
 
   interface Props {
     userInput: string;
     isLoading: boolean;
+    modelMode: ModelMode;
     onSend: () => void;
     onKeyPress: (event: KeyboardEvent) => void;
     selectedModel: string;
@@ -18,6 +19,7 @@
   let {
     userInput = $bindable(),
     isLoading,
+    modelMode,
     onSend,
     onKeyPress,
     selectedModel,
@@ -27,34 +29,40 @@
   let modelCategories = function groupModelsByProvider(
     modelOptions: Map<string, Model>
   ): Map<string, DropdownCategory> {// The outer map keys are the provider IDs (e.g., 'google')
-  const categoryMap = new Map<string, DropdownCategory>();
+    const categoryMap = new Map<string, DropdownCategory>();
 
-  for (const model of modelOptions.values()) {
-    const providerKey = model.provider.toLowerCase();
+    for (const model of modelOptions.values()) {
+      const providerKey = model.provider;
 
-    // 1. Create the category if it doesn't exist
-    if (!categoryMap.has(providerKey)) {
-      categoryMap.set(providerKey, {
-        key: providerKey,
-        // Capitalize for display label (e.g. "Google")
-        label: providerKey.charAt(0).toUpperCase() + providerKey.slice(1),
-        // Initialize as an empty Map instead of an array
-        items: new Map<string, DropdownItem>() 
+      let disabled: boolean = false; 
+      if((modelMode === "anthropic" && providerKey === "google") || 
+          (modelMode === "google" && providerKey === "anthropic")) {
+        disabled = true;
+      }
+      // 1. Create the category if it doesn't exist
+      if (!categoryMap.has(providerKey)) {
+        categoryMap.set(providerKey, {
+          key: providerKey,
+          disabled: disabled,
+          // Capitalize for display label (e.g. "Google")
+          label: providerKey.charAt(0).toUpperCase() + providerKey.slice(1),
+          // Initialize as an empty Map instead of an array
+          items: new Map<string, DropdownItem>() 
+        });
+      }
+
+      // 2. Add the item to the category's inner Map
+      const category = categoryMap.get(providerKey)!;
+      
+      category.items.set(model.key, {
+        key: model.key,
+        label: model.name
       });
     }
 
-    // 2. Add the item to the category's inner Map
-    const category = categoryMap.get(providerKey)!;
-    
-    category.items.set(model.key, {
-      key: model.key,
-      label: model.name
-    });
-  }
-
-  console.dir(categoryMap);
-  return categoryMap;
-  }(modelOptions);
+    console.dir(categoryMap);
+    return categoryMap;
+  };
 </script>
 
 <div class="input-container">
@@ -72,7 +80,7 @@
   </div>
   <div class="input-controls">
     <Dropdown
-      items={modelCategories}
+      items={modelCategories(modelOptions)}
       selectedItemKey={selectedModel}
       onSelect={onModelChange}
       disabled={isLoading}

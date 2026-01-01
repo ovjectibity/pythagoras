@@ -17,6 +17,7 @@
   const moreOptions = new Map([
     [ 'manage-api-keys', {
         key: "manage-api-keys",
+        disabled: false,
         items: new Map([
           [
             "manage-api-keys", 
@@ -53,14 +54,12 @@
 <svelte:window onclick={handleClickOutside} />
 
 <div class="header">
-  {#if selectedChatKey > 0}
-    <Dropdown
-      items={chats}
-      selectedItemKey={String(selectedChatKey)}
-      onSelect={onChatChange}
-      position="down"
-    />
-  {/if}
+  <Dropdown
+    items={chats}
+    selectedItemKey={String(selectedChatKey)}
+    onSelect={onChatChange}
+    position="down"
+  />
   <div class="header-actions">
     <button class="icon-button" title="New">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">

@@ -5,19 +5,18 @@
     ModelMessage, SetApiKeys, UserModelMessage, 
     UserOutput, Thread, ThreadBase,
     GetThreads,
-    ModelProvider
+    ModelMode
   } from "../messages.js";
   import Header from './header.svelte';
   import Messages from './messages.svelte';
   import Input from './input.svelte';
   import ManageKeysOverlay from './managekeysoverlay.svelte';
   import { FigmaAgentThread } from "./agent.js";
-  import type { CommandExecutor, DropdownCategory, DropdownItem } from '../common.js';
+  import { modelOptions, type CommandExecutor, type DropdownCategory, type DropdownItem } from '../common.js';
   import { FigmaPluginCommandsDispatcher } from './uicommandsexecutor.js';
 
   //TODO: Handle plugin closure by saving all the loaded threads
   //TODO: Handle model switches
-
   interface ApiKeys {
     anthropicKey: string,
     googleKey: string
@@ -27,12 +26,13 @@
   let googleApiKey: string = $state("");
   let userInput: string = $state("");
   let messages: Array<ModelMessage> = $state([]);
-  let currentThread: number = $state(-1);
-  let currentModelMode: ModelProvider = $state("anthropic");
+  let currentThread: number = $state(0);
+  let currentModelMode: ModelMode = $state("not-set");
   let currentModelKey: string = $state("claude-haiku-4-5-20251001");
   let isLoading = false;
   let cmdExec: CommandExecutor;
   let showApiKeyOverlay = $state(false);
+  let insistApiKeyOverlay = $state(false);
   let threadsList = new Map<number,ThreadBase>();
   let loadedThreadAgents: Map<number,FigmaAgentThread> = new Map();
 
@@ -65,9 +65,11 @@
         label: val.title
       });
     });
-    return new Map([
-      ['recent', { key: "recent", items: allItems }]
+    const ret = new Map([
+      ['recent', { key: "recent", disabled: false, items: allItems }]
     ]);
+    console.dir(ret);
+    return ret;
   }
 
   function setupApiKey(): Promise<ApiKeys> {
@@ -156,7 +158,9 @@
     for(let thread of threads) {
       let agent = 
         new FigmaAgentThread(
-          thread.id,thread.lastModelUsed,
+          thread.id,
+          thread.modelMode,
+          thread.lastModelUsed,
           //TODO: What if the current model 
           // selected does not match the mode? 
           thread.modelMode === "anthropic" ? 
@@ -184,19 +188,42 @@
   }
 
   async function initialSetup() {
-    let keys = await setupApiKey();
-    anthropicApiKey = keys.anthropicKey;
-    googleApiKey = keys.googleKey;
-    let list = await getStoredThreadsList();
-    list.map(val => {
-      threadsList.set(val.id,val);
-    });
-    if(threadsList.size > 0) {
-      currentThread = Math.max(...threadsList.keys());
-      currentModelMode = threadsList.get(currentThread).modelMode;
-      currentModelKey = threadsList.get(currentThread).lastModelUsed;
-      let threads = await getStoredThreads([currentThread]);
-      initialiseAgentsForThreads(threads);
+    try {
+      let keys = await setupApiKey();
+      anthropicApiKey = keys.anthropicKey;
+      googleApiKey = keys.googleKey;
+    } catch(e) {
+      // console.log(`No API keys found: ${e}`);
+    }
+
+    if(anthropicApiKey !== "" || googleApiKey !== "") {
+      try {
+        let list = await getStoredThreadsList();
+        list.map(val => {
+          threadsList.set(val.id,val);
+        });
+
+        if(threadsList.size > 0) {
+          //Setting up data structures to support existing saved threads
+          currentThread = Math.max(...threadsList.keys());
+          currentModelMode = threadsList.get(currentThread).modelMode;
+          currentModelKey = threadsList.get(currentThread).lastModelUsed;
+          let threads = await getStoredThreads([currentThread]);
+          initialiseAgentsForThreads(threads);
+        } else {
+          console.assert(currentThread === 0);
+          console.log(`Setting up a new thread given none is initialised currently`);
+          currentThread = 1;
+          setupNewthread(currentThread);
+        }
+      } catch(e) {
+        console.log(`Error during initial setup: ${e}`);
+      }
+    } else {
+      console.log(`No API keys found, 
+        skipping thread setup unless keys are set`);
+      showApiKeyOverlay = true;
+      insistApiKeyOverlay = true;
     }
     return;
   }
@@ -245,17 +272,27 @@
     if(!anthropicApiKey && !googleApiKey) {
       alert('Please set your API key in settings first');
       return;
-    } else if(currentThread === -1) {
-      console.log(`Setting up a new thread given none is initialised currently`);
-      if(threadsList.size > 0)
-        currentThread = Math.max(...threadsList.keys());
-      else currentThread = 1;
-      setupNewthread(currentThread);
+    }
+    // If the modelMode is not 
+    // setup for the current one, do that
+    let currentAgent = loadedThreadAgents.get(currentThread);
+    if(currentAgent.modelMode === "not-set") {
+      let newMode = modelOptions.get(currentModelKey).provider;
+      console.log(`Setting up current mode of the model given ` + 
+        `it is not set & first user message is sent ${newMode} ${currentModelMode}`);
+      currentAgent.setupModel(
+        newMode,
+        currentModelKey,
+        newMode === "anthropic" ? anthropicApiKey : googleApiKey
+      );
+      currentModelMode = newMode;
     }
     processUserMessage();
   }
 
-  function onModeChange(modelKey: string) {
+  function onModelChange(modelKey: string) {
+    currentModelKey = modelKey;
+    //TODO: Is any thread specific handling required here? 
   }
 
   function onChatChange(chat: string) {
@@ -278,12 +315,25 @@
     googleApiKey = keys.googleApiKey;
     saveApiKey();
     // Recreate the agent with the new API key
-    closeApiKeyOverlay();
+    if(anthropicApiKey === "" && googleApiKey === "") {
+      console.log(`No API keys found. Insisting overlay`);
+      showApiKeyOverlay = true;
+      insistApiKeyOverlay = true;
+    } else {
+      if(threadsList.size === 0 && currentThread === 0) {
+        console.log(`Setting up a new thread given none is initialised currently`);
+        currentThread = 1;
+        setupNewthread(currentThread);
+      }
+      closeApiKeyOverlay();
+    }
   }
 </script>
 
 <div class="app">
-  <!-- TODO: Fix the use of currentThread as label here  -->
+  <!-- TODO: Fix the use of currentThread as label here
+   + passing threadcategories might lead to latest 
+   values not being captured  -->
   <Header
     chats={getThreadCategories(threadsList)}
     selectedChatKey={currentThread}
@@ -296,16 +346,17 @@
   <Input
     bind:userInput={userInput}
     {isLoading}
+    modelMode = {currentModelMode}
     onSend={sendMessage}
     onKeyPress={handleKeyPress}
     selectedModel={currentModelKey}
-    onModelChange={onModeChange}
+    onModelChange={onModelChange}
   />
-
   {#if showApiKeyOverlay}
     <ManageKeysOverlay
       {anthropicApiKey}
       {googleApiKey}
+      insistView = {insistApiKeyOverlay}
       onClose={closeApiKeyOverlay}
       onUpdate={handleUpdateApiKey}
     />

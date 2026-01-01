@@ -1,10 +1,10 @@
 <script lang="ts">
   import { run, stopPropagation } from 'svelte/legacy';
-
   import DropdownList from './dropdownlist.svelte';
   import { 
     type DropdownCategory, 
-    getItemFromKey } from '../common';
+    getItemFromKey,
+    getItemsSize } from '../common';
 
   interface Props {
     items: Map<string,DropdownCategory>;
@@ -56,7 +56,11 @@
     {disabled}
     type="button"
   >
-    <span>{getItemFromKey(items,selectedItemKey).label}</span>
+    <span>
+      {#if getItemsSize(items) > 0}
+        {getItemFromKey(items,selectedItemKey).label}
+      {/if}
+    </span>
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" class="chevron" class:open={isOpen}>
       <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
