@@ -68,7 +68,7 @@ class FigmaAgentThread {
     }
 
     processModelOutput(modelOutput: AssistantModelMessage): ProcessedModelOutput
-     {
+    {
         let userOutput: Array<UserOutput> = new Array();
         let toolInput: undefined | FigmaDesignToolInput = undefined;
         for(let content of modelOutput.contents) {
@@ -108,6 +108,8 @@ class FigmaAgentThread {
                     let processedOutput = this.processModelOutput(modelOutput);
                     this.userSurfacingCb(processedOutput.userOutput);
                     if(processedOutput.toolInput) {
+                        console.log(`Executing commands evoked by the model:`);
+                        console.dir(processedOutput.toolInput);
                         let cmdsResult = await this.executor.executeCommands(
                             processedOutput.toolInput.commands);
                         userMessage = {

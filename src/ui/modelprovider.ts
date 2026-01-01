@@ -115,15 +115,22 @@ class GoogleAIModel implements ModelProvider {
                 }
                 if(content.functionCall) {
                     if(content.functionCall.name === "figma-design-tool") {
-                        //TODO: Parse the functional call here as FigmaDesignToolInput
-                        msg.push({
-                            type: "tool_use",
-                            name: "figma-design-tool",
-                            content: {
-                                input: FigmaDesignToolZ.safeParse(content.functionCall.args) as 
-                                        unknown as FigmaDesignToolInput
-                            }
-                        });
+                        //Validate the functional call here as FigmaDesignToolInput
+                        const validationResult = FigmaDesignToolZ.safeParse(content.functionCall.args);
+                        if(validationResult.success) {
+                            let modifiedpv = content.functionCall.args as unknown as FigmaDesignToolInput;
+                            msg.push({
+                                type: "tool_use",
+                                name: "figma-design-tool",
+                                content: {
+                                    input: modifiedpv
+                                }
+                            });
+                        } else {
+                            console.warn("Model output tool call does not conform to the schema");
+                            return Promise.reject(
+                                new Error(`Validation errors:, validationResult.error Received data: ${content.text}`));
+                        }
                         // this.googleMessages.push({
                         //     role: "assistant",
                         //     parts: [content]
@@ -177,7 +184,8 @@ class GoogleAIModel implements ModelProvider {
                         mode: FunctionCallingConfigMode.VALIDATED
                     }
                 },
-                responseJsonSchema: ModelMessageSchema
+                // responseMimeType: "application/json",
+                // responseJsonSchema: ModelMessageSchema
             }
         }); 
         console.debug(`Got this direct model output: ${modelOutput}`);
