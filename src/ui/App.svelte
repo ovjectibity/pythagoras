@@ -11,9 +11,21 @@
   import Messages from './messages.svelte';
   import Input from './input.svelte';
   import ManageKeysOverlay from './managekeysoverlay.svelte';
-  import { FigmaAgentThread, type AgentToolConsentLevel } from "./agent.js";
-  import { modelOptions, type CommandExecutor, type DropdownCategory, type DropdownItem } from '../common.js';
-  import { FigmaPluginCommandsDispatcher } from './uicommandsexecutor.js';
+  import { 
+    FigmaAgentThread, 
+    type AgentToolConsentLevel,
+    type UserToolConsentResponse
+  } from "./agent.js";
+  import { 
+    modelOptions, 
+    type CommandExecutor, 
+    type DropdownCategory, 
+    type DropdownItem } 
+  from '../common.js';
+  import { 
+    FigmaPluginCommandsDispatcher 
+  } from './uicommandsexecutor.js';
+    import { fa } from 'zod/v4/locales';
 
   //TODO: Handle plugin closure by saving all the loaded threads
   //TODO: Handle model switches
@@ -33,6 +45,7 @@
   let cmdExec: CommandExecutor;
   let showApiKeyOverlay = $state(false);
   let insistApiKeyOverlay = $state(false);
+  let needConsent: boolean = $state(false);
   let consentLevel: AgentToolConsentLevel = $state("ask");
   let threadsList = new Map<number,ThreadBase>();
   let loadedThreadAgents: Map<number,FigmaAgentThread> = new Map();
@@ -253,6 +266,28 @@
     }
   }
 
+  async function onUserConsentResponse(
+    userres: UserToolConsentResponse,
+    autoApprove: boolean) {
+    let agent = loadedThreadAgents.get(currentThread);
+    if(agent && needConsent && agent.isTurnActive()) {
+      needConsent = false;
+      if(autoApprove) {
+        //Send signal to the model as well 
+        agent.updateConsent("auto-approve");
+        consentLevel = "auto-approve";
+      }
+      let next = await agent.turn.next(userres);
+      if(!next.done && next.value === "need-user-consent") {
+        needConsent = true;
+      }
+    } else {
+      console.error(`Could not process user ` + 
+        `consent response ${agent} ${needConsent} ` + 
+        `${agent.isTurnActive()}`)
+    }
+  }
+
   async function processUserMessage() {
     const message = userInput.trim();
     userInput = "";
@@ -266,15 +301,15 @@
     messages.push(userMessage);
     messages = [...messages];
     try {
-      let agent = loadedThreadAgents.get(currentThread).
-                  ingestUserInput(userMessage);
-      let res = await agent.next(); 
-      while(!res.done) {
-        if(res.value === "need-user-consent") {
-          console.log(`Asking for user consent for the tool call`);
-          //TODO: Provided consent directly, surface this to the user
-          res = await agent.next("user-consented"); 
+      let agent = loadedThreadAgents.get(currentThread);
+      if(!agent.isTurnActive()) {
+        let next = await agent.runTurn(userMessage).next();
+        if(!next.done && next.value === "need-user-consent") {
+          needConsent = true;
         }
+      } else {
+        console.error(`User message being given while` + 
+        ` a turn is still active ${message}`)
       }
     } catch(e) {
       console.error(e);
@@ -357,7 +392,7 @@
     onManageApiKeys={openApiKeyOverlay}
   />
 
-  <Messages {messages} {consentLevel} {isLoading} />
+  <Messages {messages} {needConsent} {isLoading} {onUserConsentResponse} />
 
   <Input
     bind:consentLevel={consentLevel}

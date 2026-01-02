@@ -12,7 +12,7 @@ import { ModelMode } from "../messages.js";
 
 interface ProcessedModelOutput {
     userOutput: Array<UserOutput>,
-    toolInput?: Array<FigmaDesignToolUse | ToolUseInvokeError>
+    toolInput: Array<FigmaDesignToolUse | ToolUseInvokeError>
 }
 
 type AgentToolConsentLevel = "ask" | "auto-approve";
@@ -27,7 +27,8 @@ class FigmaAgentThread {
     modelMode: ModelMode;
     userSurfacingCb: (msg: Array<UserOutput>) => void;
     status: "waiting-for-user" | "running" = "waiting-for-user";
-    consentLevel: AgentToolConsentLevel = "ask";
+    private consentLevel: AgentToolConsentLevel = "ask";
+    turn: null | AsyncGenerator<AgentYield,void,UserToolConsentResponse> = null;
 
     constructor(id: number, 
         modelMode: ModelMode,
@@ -106,11 +107,34 @@ class FigmaAgentThread {
         }
     }
 
+    isTurnActive(): boolean {
+        return this.turn !== null ? true : false;
+    }
+
+    async *runTurn(userMessage: UserModelMessage): 
+        AsyncGenerator<AgentYield,void,UserToolConsentResponse> {
+        if(this.turn) {
+            Promise.reject(new Error(`There's already an active turn; doing nothing`));
+        } else {
+            this.turn = this.ingestUserInput(userMessage);
+            let res = await this.turn.next();
+            while(!res.done) {
+                console.log(`Asking for user consent for the tool call`);
+                let userres = yield res.value;
+                //TODO: BUG HERE???: The gen is waiting for a AgentYield 
+                // type to resolve here, that won't happen
+                res = await this.turn.next(userres); 
+            }
+            console.log(`Ending the active agent turn now`);
+            this.turn = null;
+        }
+    }
+
     //TODO: Handle user interruptions
     //TODO: This can probably be made more elegant 
     // using generator pattern better
     //Generator being used here only for user consent
-    async *ingestUserInput(userMessage: UserModelMessage): 
+    private async *ingestUserInput(userMessage: UserModelMessage): 
     AsyncGenerator<AgentYield,void,UserToolConsentResponse> {
         if(!this.model) {
             console.error(`User input being processed while model is not setup`);
@@ -201,13 +225,15 @@ class FigmaAgentThread {
                                     return Promise.resolve();
                                 } 
                             }
-                            }
+                        }
                     } else {
+                        console.log(`Resolving ingestUserInput now`);
                         this.status = "waiting-for-user";
                         return Promise.resolve();
                     } 
                 } catch(e) {
-                    console.log(`Faced a failure ingesting user message ${userMessage} ${e}` + 
+                    console.log(`Faced a failure ingesting user ` + 
+                        `message ${userMessage} ${e}` + 
                         `Ignoring that like it never happened.`);
                     this.status = "waiting-for-user";
                     return Promise.resolve();
@@ -217,4 +243,4 @@ class FigmaAgentThread {
     }
 }
 
-export { FigmaAgentThread, AgentToolConsentLevel };
+export { FigmaAgentThread, AgentToolConsentLevel, UserToolConsentResponse, AgentYield };
