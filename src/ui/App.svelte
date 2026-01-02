@@ -25,7 +25,6 @@
   import { 
     FigmaPluginCommandsDispatcher 
   } from './uicommandsexecutor.js';
-    import { fa } from 'zod/v4/locales';
 
   //TODO: Handle plugin closure by saving all the loaded threads
   //TODO: Handle model switches
@@ -41,7 +40,7 @@
   let currentThread: number = $state(0);
   let currentModelMode: ModelMode = $state("not-set");
   let currentModelKey: string = $state("claude-haiku-4-5-20251001");
-  let isLoading = false;
+  let isLoading = $state(false);
   let cmdExec: CommandExecutor;
   let showApiKeyOverlay = $state(false);
   let insistApiKeyOverlay = $state(false);
@@ -280,7 +279,10 @@
       let res = await agent.provideUserConsentResponse(userres);
       if(res === "need-user-consent") {
         needConsent = true;
-      }
+      } else if(res === "waiting-for-user") {
+        needConsent = false;
+        isLoading = false;
+      } 
     } else {
       console.error(`Could not process user ` + 
         `consent response ${agent} ${needConsent} ` + 
@@ -289,6 +291,7 @@
   }
 
   async function processUserMessage() {
+    isLoading = true;
     const message = userInput.trim();
     userInput = "";
     const userMessage = {
@@ -306,6 +309,9 @@
         let res = await agent.runTurn(userMessage);
         if(res === "need-user-consent") {
           needConsent = true;
+        } else if(res === "waiting-for-user") {
+          needConsent = false;
+          isLoading = false;
         }
       } else {
         console.error(`User message being given while` + 
@@ -379,6 +385,15 @@
       closeApiKeyOverlay();
     }
   }
+
+  function onConsentLevelChange() {
+    consentLevel = consentLevel === "ask" ? "auto-approve" : "ask";
+    //Update consent level for all loaded threads: 
+    loadedThreadAgents.forEach(agent => {
+      console.debug(`Updating consent for model: ${consentLevel}`);
+      agent.updateConsent(consentLevel);
+    });
+  }
 </script>
 
 <div class="app">
@@ -403,6 +418,7 @@
     onKeyPress={handleKeyPress}
     selectedModel={currentModelKey}
     onModelChange={onModelChange}
+    {onConsentLevelChange}
   />
   {#if showApiKeyOverlay}
     <ManageKeysOverlay

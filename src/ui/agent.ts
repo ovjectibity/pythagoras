@@ -16,7 +16,7 @@ interface ProcessedModelOutput {
 }
 
 type AgentToolConsentLevel = "ask" | "auto-approve";
-type AgentYield = "need-user-consent";
+type AgentState = "need-user-consent" | "waiting-for-user" | "running";
 type UserToolConsentResponse = "user-consented" | "user-rejected";
 
 class FigmaAgentThread {
@@ -26,9 +26,9 @@ class FigmaAgentThread {
     model?: ModelProvider;
     modelMode: ModelMode;
     userSurfacingCb: (msg: Array<UserOutput>) => void;
-    status: "waiting-for-user" | "running" = "waiting-for-user";
+    status: AgentState = "waiting-for-user";
     private consentLevel: AgentToolConsentLevel = "ask";
-    private turn: null | AsyncGenerator<AgentYield,void,UserToolConsentResponse> = null;
+    private turn: null | AsyncGenerator<AgentState,void,UserToolConsentResponse> = null;
 
     constructor(id: number, 
         modelMode: ModelMode,
@@ -112,7 +112,7 @@ class FigmaAgentThread {
     }
 
     async provideUserConsentResponse(consentResponse: UserToolConsentResponse): 
-    Promise<AgentYield | void> {
+    Promise<AgentState> {
         if(!this.turn) {
             throw new Error(`There's no active turn; doing nothing`);
         } else {
@@ -121,25 +121,26 @@ class FigmaAgentThread {
             if(res.done) {
                 console.log(`Ending the active agent turn now`);
                 this.turn = null;
-                return;
+                return "waiting-for-user";
             } else {
-                return res.value as AgentYield;
+                return res.value as AgentState;
             }
         }
     }
 
     async runTurn(userMessage: UserModelMessage): 
-    Promise<AgentYield | void> {
+    Promise<AgentState> {
         if(this.turn) {
-            Promise.reject(new Error(`There's already an active turn; doing nothing`));
+            throw new Error(`There's already an active turn; doing nothing`);
         } else {
             this.turn = this.ingestUserInput(userMessage);
             let res = await this.turn.next();
             if(res.done) { 
                 console.log(`Ending the active agent turn now`);
                 this.turn = null;
+                return "waiting-for-user";
             } else {
-                return res.value as AgentYield;
+                return res.value as AgentState;
             }
         }
     }
@@ -149,7 +150,7 @@ class FigmaAgentThread {
     // using generator pattern better
     //Generator being used here only for user consent
     private async *ingestUserInput(userMessage: UserModelMessage): 
-    AsyncGenerator<AgentYield,void,UserToolConsentResponse> {
+    AsyncGenerator<AgentState,void,UserToolConsentResponse> {
         if(!this.model) {
             console.error(`User input being processed while model is not setup`);
         } else {
@@ -257,4 +258,4 @@ class FigmaAgentThread {
     }
 }
 
-export { FigmaAgentThread, AgentToolConsentLevel, UserToolConsentResponse, AgentYield };
+export { FigmaAgentThread, AgentToolConsentLevel, UserToolConsentResponse, AgentState };

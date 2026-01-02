@@ -10,9 +10,17 @@
   }
 
   let { messages, needConsent, isLoading, onUserConsentResponse }: Props = $props();
+
+  let messagesContainer: HTMLDivElement;
+
+  $effect(() => {
+    if (messagesContainer) {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+  });
 </script>
 
-<div class="messages">
+<div class="messages" bind:this={messagesContainer}>
   {#if messages.length === 0}
     <div class="empty-state">
       <p>Start a conversation to modify your Figma design</p>
@@ -63,12 +71,13 @@
         {/if}
       {/each}
     {/each}
-  {/if}
-  {#if isLoading}
-    <div class="message assistant">
-      <div class="message-content loading">
-        <span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
+
+    {#if isLoading && !needConsent}
+      <div class="message assistant">
+        <div class="message-content">
+          <span class="loading-ellipsis"><span>.</span><span>.</span><span>.</span></span>
+        </div>
       </div>
-    </div>
+    {/if}
   {/if}
 </div>

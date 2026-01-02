@@ -16,6 +16,7 @@
     onKeyPress: (event: KeyboardEvent) => void;
     selectedModel: string;
     onModelChange: (model: string) => void;
+    onConsentLevelChange: () => void;
   }
 
   let {
@@ -26,7 +27,8 @@
     onSend,
     onKeyPress,
     selectedModel,
-    onModelChange
+    onModelChange,
+    onConsentLevelChange
   }: Props = $props();
 
   let modelCategories = function groupModelsByProvider(
@@ -66,10 +68,6 @@
     console.dir(categoryMap);
     return categoryMap;
   };
-
-  let onConsentLevelChange = () => {
-    consentLevel = consentLevel === "ask" ? "auto-approve" : "ask";
-  }
 </script>
 
 <div class="input-container">
@@ -118,10 +116,20 @@
         class="send-button"
         onclick={onSend}
         disabled={!userInput.trim() || isLoading}
+        title={isLoading ? "Stop response" : "Send message"}
       >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M3 8H13M13 8L9 4M13 8L9 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        {#if isLoading}
+          <div class="loading-spinner-container">
+            <div class="loading-spinner"></div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="stop-icon">
+              <rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect>
+            </svg>
+          </div>
+        {:else}
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8H13M13 8L9 4M13 8L9 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        {/if}
       </button>
     </div>
   </div>
