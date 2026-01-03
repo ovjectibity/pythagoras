@@ -1,7 +1,7 @@
 # Basquiat
 
 <div align="center">
-  <img src="assets/logo-2.jpg" alt="Basquiat logo" width="100%" />
+  <img src="assets/design.png" alt="Basquiat logo" width="100%" />
   
   <br />
   
