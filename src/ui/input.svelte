@@ -13,6 +13,7 @@
     isLoading: boolean;
     modelMode: ModelMode;
     onSend: () => void;
+    onStop: () => void;
     onKeyPress: (event: KeyboardEvent) => void;
     selectedModel: string;
     onModelChange: (model: string) => void;
@@ -25,6 +26,7 @@
     isLoading,
     modelMode,
     onSend,
+    onStop,
     onKeyPress,
     selectedModel,
     onModelChange,
@@ -114,8 +116,8 @@
       </button>
       <button
         class="send-button"
-        onclick={onSend}
-        disabled={!userInput.trim() || isLoading}
+        onclick={isLoading ? onStop : onSend}
+        disabled={!isLoading && !userInput.trim()}
         title={isLoading ? "Stop response" : "Send message"}
       >
         {#if isLoading}

@@ -322,6 +322,24 @@
     }
   }
 
+  async function handleStop() {
+    if(!isLoading) {
+      console.error(`Not loading currently, skipping handleStop`);
+      return;
+    }
+    isLoading = false;
+    //Clean up ongoing thread work here: 
+    let agent = loadedThreadAgents.get(currentThread);
+    if(agent) {
+      if(!agent.isTurnActive()) {
+        console.error(`current turn not active. ` + 
+          `Not doing anything in handleStop`);
+      } else {
+        await agent.cancelTurn();
+      }
+    }
+  }
+
   async function sendMessage() {
     if (!userInput.trim() || isLoading) 
       return;
@@ -415,6 +433,7 @@
     {isLoading}
     modelMode = {currentModelMode}
     onSend={sendMessage}
+    onStop={handleStop}
     onKeyPress={handleKeyPress}
     selectedModel={currentModelKey}
     onModelChange={onModelChange}

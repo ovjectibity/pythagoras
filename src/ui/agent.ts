@@ -116,14 +116,21 @@ class FigmaAgentThread {
         if(!this.turn) {
             throw new Error(`There's no active turn; doing nothing`);
         } else {
-            let res = await this.turn.next(consentResponse);
-            res.value
-            if(res.done) {
-                console.log(`Ending the active agent turn now`);
-                this.turn = null;
-                return "waiting-for-user";
-            } else {
-                return res.value as AgentState;
+            while(true) {
+                let res = await this.turn.next(consentResponse);
+                if(res.done) {
+                    console.log(`Ending the active agent turn now ${res}`);
+                    console.dir(res);
+                    this.turn = null;
+                    return "waiting-for-user";
+                } else if(res.value === "running") {
+                    console.log(`Allowing further run in provideUserConsentResponse`);
+                } else if(res.value === "need-user-consent") {
+                    return res.value as AgentState;
+                } else {
+                    console.error(`Unexpected value in provideUserConsentResponse`);
+                    console.dir(res);
+                }
             }
         }
     }
@@ -134,18 +141,40 @@ class FigmaAgentThread {
             throw new Error(`There's already an active turn; doing nothing`);
         } else {
             this.turn = this.ingestUserInput(userMessage);
-            let res = await this.turn.next();
-            if(res.done) { 
-                console.log(`Ending the active agent turn now`);
-                this.turn = null;
-                return "waiting-for-user";
-            } else {
-                return res.value as AgentState;
+            while(true) {
+                let res = await this.turn.next();
+                if(res.done) {
+                    console.log(`Ending the active agent turn now ${res}`);
+                    console.dir(res);
+                    this.turn = null;
+                    return "waiting-for-user";
+                } else if(res.value === "running") {
+                    console.log(`Allowing further run in runTurn`);
+                } else if(res.value === "need-user-consent") {
+                    return res.value as AgentState;
+                } else {
+                    console.error(`Unexpected value in runTurn`);
+                    console.dir(res);
+                }
             }
         }
     }
 
-    //TODO: Handle user interruptions
+    async cancelTurn() {
+        if(this.turn) {
+            console.log(`Cancelling ongoing turn`);
+            //TODO: BUG HERE: the cancelling doesn't seem to work 
+            // Currently pending model calls are orphaned
+            let retStatus = await this.turn.return();
+            console.log(`Got this retStatus: ${retStatus}`);
+            console.dir(retStatus);
+            this.status = "waiting-for-user";
+            this.turn = null;
+        } else {
+            console.error(`cancelTurn called without active turn`);
+        }
+    }
+
     //TODO: This can probably be made more elegant 
     // using generator pattern better
     //Generator being used here only for user consent
@@ -161,6 +190,8 @@ class FigmaAgentThread {
                     const modelOutput = 
                         await this.model.ingestUserMessage(userMessage);
                     this.messages.push(modelOutput);
+                    //Yielding for correct handling of the cancelTurn behavior
+                    yield "running";
                     let processedOutput = 
                         this.processModelOutput(modelOutput);
                     //Surfacing the messages to the user for display
@@ -204,6 +235,7 @@ class FigmaAgentThread {
                                     let cmdsResult = await this.executor.executeCommands(input.content.input.commands);
                                     console.log(`Got this result from executing commands:`);
                                     console.dir(cmdsResult);
+                                    yield "running";
                                     userMessage = {
                                         role: "user",
                                         contents: [{
@@ -242,7 +274,7 @@ class FigmaAgentThread {
                             }
                         }
                     } else {
-                        // console.log(`Resolving ingestUserInput now`);
+                        console.log(`Resolving ingestUserInput now`);
                         this.status = "waiting-for-user";
                         return Promise.resolve();
                     } 

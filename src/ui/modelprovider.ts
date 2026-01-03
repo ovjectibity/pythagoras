@@ -26,7 +26,8 @@ import { BetaContentBlockParam,
 interface ModelProvider {
     type: ModelProviderName;
     maxTokens: number;
-    ingestUserMessage(msg: UserModelMessage): Promise<AssistantModelMessage>;
+    ingestUserMessage(msg: UserModelMessage,
+        abortSignal?: AbortSignal): Promise<AssistantModelMessage>;
     updateModelKey(modelKey: string): void;
 }
 
@@ -185,7 +186,9 @@ class GoogleAIModel implements ModelProvider {
         return res;
     }
 
-    async ingestUserMessage(msg: UserModelMessage): Promise<AssistantModelMessage> {
+    async ingestUserMessage(
+        msg: UserModelMessage,
+        abortSignal?: AbortSignal): Promise<AssistantModelMessage> {
         for(let content of msg.contents) {
             if(content.type === "tool_result") {
                 let images = GoogleAIModel.extractImages(content.content.cmds);
@@ -224,6 +227,7 @@ class GoogleAIModel implements ModelProvider {
                         mode: FunctionCallingConfigMode.VALIDATED
                     }
                 },
+                abortSignal: abortSignal
                 // responseMimeType: "application/json",
                 // responseJsonSchema: ModelMessageSchema
             }
@@ -288,7 +292,9 @@ class AnthropicModel implements ModelProvider {
         return res;
     }
 
-    async ingestUserMessage(msg: UserModelMessage): Promise<AssistantModelMessage> {
+    async ingestUserMessage(
+        msg: UserModelMessage,
+        abortSignal?: AbortSignal): Promise<AssistantModelMessage> {
         for(let content of msg.contents) {
             if(content.type === "tool_result") {
                 let images = AnthropicModel.extractImages(content.content.cmds);
@@ -323,6 +329,9 @@ class AnthropicModel implements ModelProvider {
                 type: "json_schema",
                 schema: AssistantModelMessageSchema
             }
+        },
+        {
+            signal: abortSignal
         });
         console.debug(`Got this direct model output: ${modelOutput}`);
         console.dir(modelOutput, { depth: null });
